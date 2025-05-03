@@ -158,17 +158,47 @@ if st.sidebar.button("Symuluj Strategię"):
     else:
         result = simulate_dynamic(amount, start_date, end_date, frequency, tranche_amount, prices, markups)
 
-    st.subheader("📈 Wartość portfela")
+    # --- Obliczenia wartości portfela ---
+    st.header("📈 Wyniki Strategii")
+    
     prices_now = prices.loc[result.index]
     valuation = (
-        result["Gold"] * prices_now["Gold"]/GRAMS_IN_TROY_OUNCE +
-        result["Silver"] * prices_now["Silver"]/GRAMS_IN_TROY_OUNCE +
-        result["Platinum"] * prices_now["Platinum"]/GRAMS_IN_TROY_OUNCE +
-        result["Palladium"] * prices_now["Palladium"]/GRAMS_IN_TROY_OUNCE
+        result["Gold"] * prices_now["Gold"] / GRAMS_IN_TROY_OUNCE +
+        result["Silver"] * prices_now["Silver"] / GRAMS_IN_TROY_OUNCE +
+        result["Platinum"] * prices_now["Platinum"] / GRAMS_IN_TROY_OUNCE +
+        result["Palladium"] * prices_now["Palladium"] / GRAMS_IN_TROY_OUNCE
     )
-    
-    fig = px.line(x=result.index, y=valuation, labels={'x':'Data', 'y':'Wartość Portfela (EUR)'})
+
+    total_invested = result["Investment"].iloc[-1]
+    final_valuation = valuation.iloc[-1]
+    performance = ((final_valuation / total_invested) - 1) * 100
+
+    # --- Karty wynikowe ---
+    col1, col2, col3 = st.columns(3)
+    col1.metric("💶 Zainwestowano łącznie", f"{total_invested:,.2f} EUR")
+    col2.metric("📊 Aktualna wartość portfela", f"{final_valuation:,.2f} EUR")
+    col3.metric("📈 Wynik inwestycyjny", f"{performance:.2f}%")
+
+    # --- Wykres wartości portfela ---
+    st.subheader("📈 Wartość Portfela w Czasie")
+    fig = px.line(
+        x=result.index, y=valuation,
+        labels={'x': 'Data', 'y': 'Wartość Portfela (EUR)'},
+        title="Wartość Portfela"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("📋 Szczegóły inwestycji")
+    # --- Wykres udziału metali ---
+    st.subheader("🥇 Udziały Metali na Koniec")
+    last = result.iloc[-1][["Gold", "Silver", "Platinum", "Palladium"]]
+    metal_labels = ["Złoto", "Srebro", "Platyna", "Pallad"]
+    fig2 = px.pie(
+        values=last.values, names=metal_labels,
+        title="Udziały Metali (%)",
+        hole=0.4
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # --- Tabela wyników ---
+    st.subheader("📋 Szczegóły inwestycji (cumulative)")
     st.dataframe(result.round(2))
