@@ -199,9 +199,9 @@ def main():
         strategy = select_strategy(language)
 
         if strategy == "FIXED":
-    gold, silver, platinum, palladium = fixed_allocation(language)
-    if gold + silver + platinum + palladium == 100:
-        run_simulation = st.button("Rozpocznij symulację / Start Simulation")
+            gold, silver, platinum, palladium = fixed_allocation(language)
+            if gold + silver + platinum + palladium == 100:
+                run_simulation = st.button("Rozpocznij symulację / Start Simulation")
         
         if run_simulation:
             portfolio = simulate_fixed_strategy(
