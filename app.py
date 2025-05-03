@@ -20,7 +20,7 @@ def load_metal_prices():
         prices = pd.read_csv("lbma_data.csv", parse_dates=["Date"])
         prices.set_index("Date", inplace=True)
 
-        # Standaryzacja kolumn
+        # Standaryzacja nazw kolumn
         prices.columns = [col.strip().capitalize() for col in prices.columns]
         prices = prices.rename(columns={
             "Gold": "Gold",
@@ -47,8 +47,7 @@ def load_inflation(language):
             inflation = pd.read_csv(filename, encoding='utf-8')
         except UnicodeDecodeError:
             inflation = pd.read_csv(filename, encoding='cp1250')
-
-        # Naprawiamy potencjalnie złe nagłówki
+        
         if inflation.columns[0] != "Date":
             inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
 
@@ -59,10 +58,9 @@ def load_inflation(language):
         st.error("Brak pliku inflacyjnego.")
         return None
 
-# Funkcja pomocnicza: znajdź najbliższą datę z ceną
+# Funkcja pomocnicza: znajdź najbliższe dostępne ceny
 def get_next_available_price(prices, date):
     future_dates = prices.index[prices.index >= pd.to_datetime(date)]
-
     for future_date in future_dates:
         row = prices.loc[future_date]
         if "Gold" in row and pd.notna(row["Gold"]):
@@ -151,40 +149,28 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
     portfolio = pd.DataFrame(index=schedule, columns=["Gold", "Silver", "Platinum", "Palladium"]).fillna(0.0)
 
     for date in schedule:
-    row = get_next_available_price(prices, date)
+        row = get_next_available_price(prices, date)
 
-    if row is not None:
-        try:
-            price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
-            price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
-            price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
-            price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
+        if row is not None:
+            try:
+                price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
+                price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
+                price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
+                price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
 
-            price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
-            price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
-            price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
-            price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
+                price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
+                price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
+                price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
+                price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
 
-            investment = tranche_amount
-            portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
-            portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
-            portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
-            portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
+                investment = tranche_amount
+                portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
+                portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
+                portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
+                portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
 
-        except KeyError:
-            continue  # Jeżeli nadal nie ma jakiejś ceny – pomijamy dzień
-
-            price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
-            price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
-            price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
-            price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
-
-            investment = tranche_amount
-            portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
-            portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
-            portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
-            portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
-
+            except KeyError:
+                continue
     return portfolio.cumsum()
 
 # Funkcja wyceny wg cen spot
