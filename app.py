@@ -1,5 +1,5 @@
-# Aplikacja Streamlit - Wersja 0.4
-# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED
+# Aplikacja Streamlit - Wersja 0.6
+# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED z wyceną portfela
 
 import streamlit as st
 import pandas as pd
@@ -44,16 +44,22 @@ def input_initial_data(language):
     if language == "Polski":
         st.sidebar.header("Dane podstawowe")
         amount = st.sidebar.number_input("Kwota początkowej alokacji (EUR)", min_value=0.0, step=100.0)
-        start_date = st.sidebar.date_input("Data pierwszego zakupu")
-        end_date = st.sidebar.date_input("Data ostatniego zakupu")
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            start_date = st.date_input("Data pierwszego zakupu")
+        with col2:
+            end_date = st.date_input("Data ostatniego zakupu")
         st.sidebar.subheader("Zakupy systematyczne (transze odnawialne)")
         frequency = st.sidebar.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
         tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)", min_value=0.0, step=50.0)
     else:
         st.sidebar.header("Basic Information")
         amount = st.sidebar.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0)
-        start_date = st.sidebar.date_input("First Purchase Date")
-        end_date = st.sidebar.date_input("Last Purchase Date")
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            start_date = st.date_input("First Purchase Date")
+        with col2:
+            end_date = st.date_input("Last Purchase Date")
         st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
         frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
         tranche_amount = st.sidebar.number_input("Amount of Each Tranche (EUR)", min_value=0.0, step=50.0)
@@ -99,6 +105,17 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
     portfolio_cumsum = portfolio.cumsum()
     return portfolio_cumsum
 
+# Funkcja przeliczenia wartości portfela
+def calculate_portfolio_value(portfolio, prices):
+    common_dates = portfolio.index.intersection(prices.index)
+    portfolio = portfolio.loc[common_dates]
+    prices = prices.loc[common_dates]
+    value = (portfolio["Gold"] * prices["Gold"] +
+             portfolio["Silver"] * prices["Silver"] +
+             portfolio["Platinum"] * prices["Platinum"] +
+             portfolio["Palladium"] * prices["Palladium"])
+    return value
+
 # Główne wywołanie aplikacji
 def main():
     st.title("💼 Strategia Budowy Majątku w Metalach")
@@ -127,7 +144,13 @@ def main():
 
                 if st.button("Rozpocznij symulację / Start Simulation"):
                     portfolio = simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount, gold, silver, platinum, palladium, prices)
+                    st.subheader("Wykres ilości metali / Metal Holdings")
                     st.line_chart(portfolio)
+
+                    portfolio_value = calculate_portfolio_value(portfolio, prices)
+                    st.subheader("Wartość portfela w EUR / Portfolio Value in EUR")
+                    st.line_chart(portfolio_value)
+
                     st.success("Symulacja zakończona sukcesem!")
 
 if __name__ == "__main__":
