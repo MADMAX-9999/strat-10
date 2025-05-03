@@ -35,7 +35,7 @@ def create_sample_lbma_data():
 
 def load_prices():
     try:
-        df = pd.read_csv("lbma_data.csv", parse_dates=["Date"])
+        df = pd.read_csv("lbma_data.csv", parse_dates=["Date"], sep=None, engine='python')
         st.sidebar.success("Załadowano dane z pliku `lbma_data.csv`.")
     except FileNotFoundError:
         st.sidebar.error("Brak pliku `lbma_data.csv` na serwerze. Proszę dodać ten plik.")
@@ -44,13 +44,31 @@ def load_prices():
         st.sidebar.error(f"Błąd przy czytaniu pliku `lbma_data.csv`: {e}")
         st.stop()
 
-    # Upewnij się, że DataFrame ma poprawne kolumny
-    expected_cols = {"Date", "Gold", "Silver", "Platinum", "Palladium"}
-    if not expected_cols.issubset(set(df.columns)):
-        st.sidebar.error("Plik `lbma_data.csv` musi zawierać kolumny: Date, Gold, Silver, Platinum, Palladium.")
+    # Mapa nazw kolumn
+    rename_map = {
+        "Gold_EUR": "Gold",
+        "Silver_EUR": "Silver",
+        "Platinum_EUR": "Platinum",
+        "Palladium_EUR": "Palladium"
+    }
+    
+    # Sprawdzenie wymaganych kolumn
+    required_columns = {"Date", "Gold_EUR", "Silver_EUR", "Platinum_EUR", "Palladium_EUR"}
+    if not required_columns.issubset(df.columns):
+        st.sidebar.error("Plik `lbma_data.csv` musi zawierać kolumny: Date, Gold_EUR, Silver_EUR, Platinum_EUR, Palladium_EUR.")
         st.stop()
-        
+
+    # Zamiana nazw kolumn na standardowe
+    df = df.rename(columns=rename_map)
+
+    # Ustawienie Date jako indeks
     df = df.set_index("Date")
+
+    # Sprawdzenie brakujących wartości
+    if df.isnull().any().any():
+        st.sidebar.warning("Wykryto brakujące wartości w danych! Uzupełniam metodą 'ffill'.")
+        df = df.fillna(method='ffill')
+
     return df
 
 def get_next_available_price(prices, date):
