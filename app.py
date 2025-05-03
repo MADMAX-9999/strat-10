@@ -1,5 +1,5 @@
-# Aplikacja Streamlit - Wersja 0.7
-# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED z wyceną portfela i poprawą kodowania
+# Aplikacja Streamlit - Wersja 0.8
+# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED z wyceną portfela i poprawą kodowania oraz nazw kolumn
 
 import streamlit as st
 import pandas as pd
@@ -23,7 +23,7 @@ def load_metal_prices():
         st.error("Brak pliku lbma_data.csv. / Missing lbma_data.csv file.")
         return None
 
-# Funkcja wczytania danych inflacyjnych z obsługą kodowania
+# Funkcja wczytania danych inflacyjnych z obsługą kodowania i kolumny
 def load_inflation(language):
     if language == "Polski":
         filename = "inflacja-PL.csv"
@@ -33,10 +33,15 @@ def load_inflation(language):
             filename = "inflacja-PL.csv"  # Domyślnie PL jeśli brak EN
     try:
         try:
-            inflation = pd.read_csv(filename, encoding='utf-8', parse_dates=["Date"])
+            inflation = pd.read_csv(filename, encoding='utf-8')
         except UnicodeDecodeError:
-            inflation = pd.read_csv(filename, encoding='cp1250', parse_dates=["Date"])
+            inflation = pd.read_csv(filename, encoding='cp1250')
+
+        if inflation.columns[0] not in ["Date"]:
+            inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
+        inflation["Date"] = pd.to_datetime(inflation["Date"], errors='coerce')
         inflation.set_index("Date", inplace=True)
+
         return inflation
     except FileNotFoundError:
         st.error("Brak pliku inflacyjnego. / Missing inflation data file.")
@@ -158,3 +163,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
