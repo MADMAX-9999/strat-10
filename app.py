@@ -1,7 +1,3 @@
-# Aplikacja Streamlit - Wersja 1.0
-# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED
-# Dynamiczne suwaki proporcji metali - zawsze suma 100%
-
 import streamlit as st
 import pandas as pd
 import os
@@ -38,7 +34,7 @@ def load_inflation(language):
             inflation = pd.read_csv(filename, encoding='utf-8')
         except UnicodeDecodeError:
             inflation = pd.read_csv(filename, encoding='cp1250')
-        if inflation.columns[0] not in ["Date"]:
+        if inflation.columns[0] != "Date":
             inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
         inflation["Date"] = pd.to_datetime(inflation["Date"], errors='coerce')
         inflation.set_index("Date", inplace=True)
@@ -47,7 +43,7 @@ def load_inflation(language):
         st.error("Brak pliku inflacyjnego. / Missing inflation data file.")
         return None
 
-# Funkcja formularza podstawowych danych
+# Funkcja formularza danych podstawowych
 def input_initial_data(prices, language):
     min_date = prices.index.min().date()
     max_date = prices.index.max().date()
@@ -78,10 +74,17 @@ def input_initial_data(prices, language):
         st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
         frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
 
+    # Koszty zakupu
+    st.sidebar.header("Koszt zakupu metali (%)")
+    gold_markup = st.sidebar.number_input("Złoto (Gold) %", min_value=0.0, max_value=100.0, value=9.90, step=0.1)
+    silver_markup = st.sidebar.number_input("Srebro (Silver) %", min_value=0.0, max_value=100.0, value=13.5, step=0.1)
+    platinum_markup = st.sidebar.number_input("Platyna (Platinum) %", min_value=0.0, max_value=100.0, value=14.3, step=0.1)
+    palladium_markup = st.sidebar.number_input("Pallad (Palladium) %", min_value=0.0, max_value=100.0, value=16.9, step=0.1)
+
     default_tranche = 250.0 if frequency in ["Tygodniowa", "Weekly"] else 1000.0 if frequency in ["Miesięczna", "Monthly"] else 3250.0
     tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)" if language == "Polski" else "Amount of Each Tranche (EUR)", min_value=0.0, step=50.0, value=default_tranche)
 
-    return amount, start_date, end_date, frequency, tranche_amount
+    return amount, start_date, end_date, frequency, tranche_amount, gold_markup, silver_markup, platinum_markup, palladium_markup
 
 # Funkcja wyboru strategii
 def select_strategy(language):
@@ -93,18 +96,14 @@ def select_strategy(language):
         strategy = st.sidebar.radio("Choose a strategy", ("FIXED", "MOMENTUM", "VALUE"))
     return strategy
 
-# Funkcja ustawienia proporcji metali z dynamicznym balansem
-
+# Funkcja ustawienia proporcji FIXED
 def fixed_allocation(language):
     st.subheader("Ustaw proporcje metali / Set metal proportions")
-
-    # Suwaki z krokiem co 5%
     gold = st.slider("Złoto / Gold (%)", 0, 100, 40, step=5)
     silver = st.slider("Srebro / Silver (%)", 0, 100, 30, step=5)
     platinum = st.slider("Platyna / Platinum (%)", 0, 100, 15, step=5)
     palladium = st.slider("Pallad / Palladium (%)", 0, 100, 15, step=5)
 
-    # Suma wszystkich metali
     total = gold + silver + platinum + palladium
     st.write(f"**Suma:** {total}%")
 
@@ -115,8 +114,10 @@ def fixed_allocation(language):
 
     return gold, silver, platinum, palladium
 
-# Funkcja symulacji zakupów FIXED
-def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount, gold_pct, silver_pct, platinum_pct, palladium_pct, prices):
+# Funkcja symulacji FIXED
+def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount,
+                             gold_pct, silver_pct, platinum_pct, palladium_pct,
+                             prices, gold_markup, silver_markup, platinum_markup, palladium_markup):
     freq_map = {"Tygodniowa": "W", "Miesięczna": "M", "Kwartalna": "Q", "Weekly": "W", "Monthly": "M", "Quarterly": "Q"}
     schedule = pd.date_range(start=start_date, end=end_date, freq=freq_map.get(frequency, "M"))
     portfolio = pd.DataFrame(index=schedule, columns=["Gold", "Silver", "Platinum", "Palladium"])
@@ -124,23 +125,35 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
 
     for date in schedule:
         if date in prices.index:
+            price_gold_g = prices.loc[date, "Gold"] / 31.1034768
+            price_silver_g = prices.loc[date, "Silver"] / 31.1034768
+            price_platinum_g = prices.loc[date, "Platinum"] / 31.1034768
+            price_palladium_g = prices.loc[date, "Palladium"] / 31.1034768
+
+            # Ceny z marżą
+            price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
+            price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
+            price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
+            price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
+
             investment = tranche_amount
-            portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / prices.loc[date, "Gold"]
-            portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / prices.loc[date, "Silver"]
-            portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / prices.loc[date, "Platinum"]
-            portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / prices.loc[date, "Palladium"]
+
+            portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
+            portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
+            portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
+            portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
+
     portfolio_cumsum = portfolio.cumsum()
     return portfolio_cumsum
 
-# Funkcja przeliczenia wartości portfela
-def calculate_portfolio_value(portfolio, prices):
+# Funkcja przeliczenia wartości depozytu wg spot
+def calculate_portfolio_value_spot(portfolio, prices):
     common_dates = portfolio.index.intersection(prices.index)
-    portfolio = portfolio.loc[common_dates]
-    prices = prices.loc[common_dates]
-    value = (portfolio["Gold"] * prices["Gold"] +
-             portfolio["Silver"] * prices["Silver"] +
-             portfolio["Platinum"] * prices["Platinum"] +
-             portfolio["Palladium"] * prices["Palladium"])
+    prices_g = prices.loc[common_dates] / 31.1034768
+    value = (portfolio.loc[common_dates]["Gold"] * prices_g["Gold"] +
+             portfolio.loc[common_dates]["Silver"] * prices_g["Silver"] +
+             portfolio.loc[common_dates]["Platinum"] * prices_g["Platinum"] +
+             portfolio.loc[common_dates]["Palladium"] * prices_g["Palladium"])
     return value
 
 # Główne wywołanie aplikacji
@@ -153,7 +166,7 @@ def main():
     inflation = load_inflation(language)
 
     if prices is not None and inflation is not None:
-        amount, start_date, end_date, frequency, tranche_amount = input_initial_data(prices, language)
+        amount, start_date, end_date, frequency, tranche_amount, gold_markup, silver_markup, platinum_markup, palladium_markup = input_initial_data(prices, language)
         strategy = select_strategy(language)
 
         st.header("Podsumowanie Wyborów / Summary")
@@ -170,15 +183,15 @@ def main():
                 st.success("Strategia FIXED ustawiona poprawnie!")
 
                 if st.button("Rozpocznij symulację / Start Simulation"):
-                    portfolio = simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount, gold, silver, platinum, palladium, prices)
-                    st.subheader("Wykres ilości metali / Metal Holdings")
+                    portfolio = simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount,
+                                                        gold, silver, platinum, palladium,
+                                                        prices, gold_markup, silver_markup, platinum_markup, palladium_markup)
+                    st.subheader("Zakupione ilości metali (gramy)")
                     st.line_chart(portfolio)
 
-                    portfolio_value = calculate_portfolio_value(portfolio, prices)
-                    st.subheader("Wartość portfela w EUR / Portfolio Value in EUR")
-                    st.line_chart(portfolio_value)
-
-                    st.success("Symulacja zakończona sukcesem!")
+                    portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
+                    st.subheader("Wartość depozytu wg cen spot (EUR)")
+                    st.line_chart(portfolio_value_spot)
 
 if __name__ == "__main__":
     main()
