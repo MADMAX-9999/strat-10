@@ -199,22 +199,24 @@ def main():
         strategy = select_strategy(language)
 
         if strategy == "FIXED":
-            gold, silver, platinum, palladium = fixed_allocation(language)
-            if gold + silver + platinum + palladium == 100:
-                run_simulation = st.button("Rozpocznij symulację / Start Simulation")
+    gold, silver, platinum, palladium = fixed_allocation(language)
+    if gold + silver + platinum + palladium == 100:
+        run_simulation = st.button("Rozpocznij symulację / Start Simulation")
         
-                if run_simulation:
-                    portfolio = simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount,
-                                                gold, silver, platinum, palladium,
-                                                prices, gold_markup, silver_markup, platinum_markup, palladium_markup)
+        if run_simulation:
+            portfolio = simulate_fixed_strategy(
+                amount, start_date, end_date, frequency, tranche_amount,
+                gold, silver, platinum, palladium,
+                prices, gold_markup, silver_markup, platinum_markup, palladium_markup
+            )
 
-                    if not portfolio.empty:
-                    st.subheader("Zakupione ilości metali (gramy)")
-                    st.line_chart(portfolio.fillna(0))
+            if not portfolio.empty:
+                st.subheader("Zakupione ilości metali (gramy)")
+                st.line_chart(portfolio.fillna(0))
 
-                    portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
-                    st.subheader("Wartość depozytu wg cen spot (EUR)")
-                    st.line_chart(portfolio_value_spot.fillna(0))
+                portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
+                st.subheader("Wartość depozytu wg cen spot (EUR)")
+                st.line_chart(portfolio_value_spot.fillna(0))
 
 if __name__ == "__main__":
     main()
