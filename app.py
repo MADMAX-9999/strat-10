@@ -1,6 +1,6 @@
-# Aplikacja Streamlit - Wersja 0.9
+# Aplikacja Streamlit - Wersja 1.0
 # Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED
-# + Domyślne wartości danych podstawowych + poprawa zakresu dat
+# Dynamiczne suwaki proporcji metali - zawsze suma 100%
 
 import streamlit as st
 import pandas as pd
@@ -25,7 +25,7 @@ def load_metal_prices():
         st.error("Brak pliku lbma_data.csv. / Missing lbma_data.csv file.")
         return None
 
-# Funkcja wczytania danych inflacyjnych z obsługą kodowania i kolumny
+# Funkcja wczytania danych inflacyjnych
 def load_inflation(language):
     if language == "Polski":
         filename = "inflacja-PL.csv"
@@ -78,7 +78,6 @@ def input_initial_data(prices, language):
         st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
         frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
 
-    # Domyślna kwota transzy w zależności od wybranej częstotliwości
     default_tranche = 250.0 if frequency in ["Tygodniowa", "Weekly"] else 1000.0 if frequency in ["Miesięczna", "Monthly"] else 3250.0
     tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)" if language == "Polski" else "Amount of Each Tranche (EUR)", min_value=0.0, step=50.0, value=default_tranche)
 
@@ -94,17 +93,28 @@ def select_strategy(language):
         strategy = st.sidebar.radio("Choose a strategy", ("FIXED", "MOMENTUM", "VALUE"))
     return strategy
 
-# Funkcja ustawienia proporcji dla FIXED
+# Funkcja ustawienia proporcji metali z dynamicznym balansem
+
 def fixed_allocation(language):
     st.subheader("Ustaw proporcje metali / Set metal proportions")
-    gold = st.slider("Złoto / Gold (%)", 0, 100, 40)
-    silver = st.slider("Srebro / Silver (%)", 0, 100, 30)
-    platinum = st.slider("Platyna / Platinum (%)", 0, 100, 15)
-    palladium = st.slider("Pallad / Palladium (%)", 0, 100, 15)
-    total = gold + silver + platinum + palladium
-    st.write(f"Suma procentów: {total}%")
-    if total != 100:
-        st.error("Suma procentów musi wynosić 100% / Total must be 100%!")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        gold = st.slider("Złoto / Gold (%)", 0, 100, 40)
+    with col2:
+        silver = st.slider("Srebro / Silver (%)", 0, 100, 30)
+    with col3:
+        platinum = st.slider("Platyna / Platinum (%)", 0, 100, 15)
+
+    sum_selected = gold + silver + platinum
+    palladium = max(0, 100 - sum_selected)
+
+    st.slider("Pallad / Palladium (%)", 0, 100, value=palladium, disabled=True)
+
+    st.write(f"**Suma:** {gold + silver + platinum + palladium}%")
+
+    if sum_selected > 100:
+        st.error("Suma trzech pierwszych metali przekracza 100%! Proszę zmniejszyć wartości.")
+
     return gold, silver, platinum, palladium
 
 # Funkcja symulacji zakupów FIXED
