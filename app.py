@@ -1,5 +1,5 @@
-# Aplikacja Streamlit - Wersja 0.1
-# Budowanie strategii inwestycyjnej w metale szlachetne
+# Aplikacja Streamlit - Wersja 0.2
+# Budowanie strategii inwestycyjnej w metale szlachetne - poprawiona wersja: Sidebar na dane wejściowe
 
 import streamlit as st
 
@@ -14,31 +14,31 @@ def select_language():
 # Funkcja formularza podstawowych danych
 def input_initial_data(language):
     if language == "Polski":
-        st.header("Dane podstawowe")
-        amount = st.number_input("Kwota początkowej alokacji (EUR)", min_value=0.0, step=100.0)
-        start_date = st.date_input("Data pierwszego zakupu")
-        end_date = st.date_input("Data ostatniego zakupu")
-        st.subheader("Zakupy systematyczne (transze odnawialne)")
-        frequency = st.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
-        tranche_amount = st.number_input("Kwota każdej transzy (EUR)", min_value=0.0, step=50.0)
+        st.sidebar.header("Dane podstawowe")
+        amount = st.sidebar.number_input("Kwota początkowej alokacji (EUR)", min_value=0.0, step=100.0)
+        start_date = st.sidebar.date_input("Data pierwszego zakupu")
+        end_date = st.sidebar.date_input("Data ostatniego zakupu")
+        st.sidebar.subheader("Zakupy systematyczne (transze odnawialne)")
+        frequency = st.sidebar.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
+        tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)", min_value=0.0, step=50.0)
     else:
-        st.header("Basic Information")
-        amount = st.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0)
-        start_date = st.date_input("First Purchase Date")
-        end_date = st.date_input("Last Purchase Date")
-        st.subheader("Recurring Purchases (Renewable Tranches)")
-        frequency = st.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
-        tranche_amount = st.number_input("Amount of Each Tranche (EUR)", min_value=0.0, step=50.0)
+        st.sidebar.header("Basic Information")
+        amount = st.sidebar.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0)
+        start_date = st.sidebar.date_input("First Purchase Date")
+        end_date = st.sidebar.date_input("Last Purchase Date")
+        st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
+        frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
+        tranche_amount = st.sidebar.number_input("Amount of Each Tranche (EUR)", min_value=0.0, step=50.0)
     return amount, start_date, end_date, frequency, tranche_amount
 
 # Funkcja wyboru strategii
 def select_strategy(language):
     if language == "Polski":
-        st.header("Wybór strategii")
-        strategy = st.radio("Wybierz strategię", ("FIXED", "MOMENTUM", "VALUE"))
+        st.sidebar.header("Wybór strategii")
+        strategy = st.sidebar.radio("Wybierz strategię", ("FIXED", "MOMENTUM", "VALUE"))
     else:
-        st.header("Strategy Selection")
-        strategy = st.radio("Choose a strategy", ("FIXED", "MOMENTUM", "VALUE"))
+        st.sidebar.header("Strategy Selection")
+        strategy = st.sidebar.radio("Choose a strategy", ("FIXED", "MOMENTUM", "VALUE"))
     return strategy
 
 # Funkcja ustawienia proporcji dla FIXED
@@ -56,9 +56,20 @@ def fixed_allocation(language):
 
 # Główne wywołanie aplikacji
 def main():
+    st.title("💼 Strategia Budowy Majątku w Metalach")
+    st.write("Wprowadź dane w panelu bocznym i obserwuj wyniki tutaj.")
+
     language = select_language()
     amount, start_date, end_date, frequency, tranche_amount = input_initial_data(language)
     strategy = select_strategy(language)
+
+    st.header("Podsumowanie Wyborów / Summary")
+    st.write(f"**Strategia / Strategy**: {strategy}")
+    st.write(f"**Kwota początkowa / Initial Amount**: {amount} EUR")
+    st.write(f"**Data pierwszego zakupu / First Purchase Date**: {start_date}")
+    st.write(f"**Data ostatniego zakupu / Last Purchase Date**: {end_date}")
+    st.write(f"**Periodyczność / Frequency**: {frequency}")
+    st.write(f"**Kwota transzy / Tranche Amount**: {tranche_amount} EUR")
 
     if strategy == "FIXED":
         gold, silver, platinum, palladium = fixed_allocation(language)
