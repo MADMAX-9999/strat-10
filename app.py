@@ -98,59 +98,22 @@ def select_strategy(language):
 def fixed_allocation(language):
     st.subheader("Ustaw proporcje metali / Set metal proportions")
 
-    # Inicjalizacja domyślnych wartości, jeśli nie istnieją
-    if "gold" not in st.session_state:
-        st.session_state.gold = 40
-        st.session_state.silver = 30
-        st.session_state.platinum = 15
-        st.session_state.palladium = 15
+    # Suwaki z krokiem co 5%
+    gold = st.slider("Złoto / Gold (%)", 0, 100, 40, step=5)
+    silver = st.slider("Srebro / Silver (%)", 0, 100, 30, step=5)
+    platinum = st.slider("Platyna / Platinum (%)", 0, 100, 15, step=5)
+    palladium = st.slider("Pallad / Palladium (%)", 0, 100, 15, step=5)
 
-    # Funkcja pomocnicza do aktualizacji proporcji
-    def update_sliders(changed_metal, new_value):
-        total_other = 100 - new_value
-        metals = ["gold", "silver", "platinum", "palladium"]
-        others = [m for m in metals if m != changed_metal]
-
-        current_sum = sum(st.session_state[m] for m in others)
-
-        if current_sum == 0:
-            for m in others:
-                st.session_state[m] = total_other / 3
-        else:
-            for m in others:
-                st.session_state[m] = st.session_state[m] / current_sum * total_other
-
-        # Zaokrąglenie wartości
-        for m in metals:
-            st.session_state[m] = round(st.session_state[m])
-
-        # Korekta sumy do 100%
-        correction = 100 - sum(st.session_state[m] for m in metals)
-        if correction != 0:
-            # Szukamy metalu, który można skorygować
-            for m in others + [changed_metal]:
-                if 0 <= st.session_state[m] + correction <= 100:
-                    st.session_state[m] += correction
-                    break
-
-    # Suwaki
-    gold = st.slider("Złoto / Gold (%)", 0, 100, value=int(st.session_state.gold),
-                     key="gold", on_change=update_sliders, args=("gold", st.session_state.gold))
-    silver = st.slider("Srebro / Silver (%)", 0, 100, value=int(st.session_state.silver),
-                       key="silver", on_change=update_sliders, args=("silver", st.session_state.silver))
-    platinum = st.slider("Platyna / Platinum (%)", 0, 100, value=int(st.session_state.platinum),
-                         key="platinum", on_change=update_sliders, args=("platinum", st.session_state.platinum))
-    palladium = st.slider("Pallad / Palladium (%)", 0, 100, value=int(st.session_state.palladium),
-                          key="palladium", on_change=update_sliders, args=("palladium", st.session_state.palladium))
-
-    # Pozycje końcowe
-    total = st.session_state.gold + st.session_state.silver + st.session_state.platinum + st.session_state.palladium
+    # Suma wszystkich metali
+    total = gold + silver + platinum + palladium
     st.write(f"**Suma:** {total}%")
 
     if total != 100:
-        st.warning("Suma odbiega od 100%! Proszę dostosować suwaki.")
+        st.error("Suma musi wynosić dokładnie 100%! Proszę dostosować suwaki.")
+    else:
+        st.success("Suma wynosi 100%! Możesz kontynuować.")
 
-    return st.session_state.gold, st.session_state.silver, st.session_state.platinum, st.session_state.palladium
+    return gold, silver, platinum, palladium
 
 # Funkcja symulacji zakupów FIXED
 def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount, gold_pct, silver_pct, platinum_pct, palladium_pct, prices):
