@@ -186,12 +186,18 @@ def main():
                     portfolio = simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount,
                                                         gold, silver, platinum, palladium,
                                                         prices, gold_markup, silver_markup, platinum_markup, palladium_markup)
-                    st.subheader("Zakupione ilości metali (gramy)")
-                    st.line_chart(portfolio)
 
-                    portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
-                    st.subheader("Wartość depozytu wg cen spot (EUR)")
-                    st.line_chart(portfolio_value_spot)
+                    if not portfolio.empty:
+                        st.subheader("Zakupione ilości metali (gramy)")
+                        st.line_chart(portfolio.fillna(0))
+
+                        portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
+                        st.subheader("Wartość depozytu wg cen spot (EUR)")
+                        st.line_chart(portfolio_value_spot.fillna(0))
+
+                        st.success("Symulacja zakończona sukcesem!")
+                    else:
+                        st.error("Brak danych w wybranym zakresie dat! Proszę zmienić daty.")
 
 if __name__ == "__main__":
     main()
