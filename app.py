@@ -34,15 +34,22 @@ def create_sample_lbma_data():
     return df
 
 def load_prices():
-    uploaded = st.sidebar.file_uploader("Upload LBMA CSV", type=['csv'])
-    if uploaded:
-        df = pd.read_csv(uploaded, parse_dates=["Date"])
-    else:
-        try:
-            df = pd.read_csv("lbma_data.csv", parse_dates=["Date"])
-        except:
-            st.sidebar.info("Using sample LBMA data.")
-            df = create_sample_lbma_data()
+    try:
+        df = pd.read_csv("lbma_data.csv", parse_dates=["Date"])
+        st.sidebar.success("Załadowano dane z pliku `lbma_data.csv`.")
+    except FileNotFoundError:
+        st.sidebar.error("Brak pliku `lbma_data.csv` na serwerze. Proszę dodać ten plik.")
+        st.stop()
+    except Exception as e:
+        st.sidebar.error(f"Błąd przy czytaniu pliku `lbma_data.csv`: {e}")
+        st.stop()
+
+    # Upewnij się, że DataFrame ma poprawne kolumny
+    expected_cols = {"Date", "Gold", "Silver", "Platinum", "Palladium"}
+    if not expected_cols.issubset(set(df.columns)):
+        st.sidebar.error("Plik `lbma_data.csv` musi zawierać kolumny: Date, Gold, Silver, Platinum, Palladium.")
+        st.stop()
+        
     df = df.set_index("Date")
     return df
 
