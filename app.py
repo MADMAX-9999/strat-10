@@ -61,8 +61,14 @@ def input_initial_data(prices, language):
             start_date = st.date_input("Data pierwszego zakupu", value=start_default, min_value=min_date, max_value=max_date)
         with col2:
             end_date = st.date_input("Data ostatniego zakupu", value=end_default, min_value=min_date, max_value=max_date)
+        
         st.sidebar.subheader("Zakupy systematyczne (transze odnawialne)")
         frequency = st.sidebar.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
+        
+        # Kwota transzy OD RAZU pod periodycznością
+        default_tranche = 250.0 if frequency in ["Tygodniowa"] else 1000.0 if frequency in ["Miesięczna"] else 3250.0
+        tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)", min_value=0.0, step=50.0, value=default_tranche)
+        
     else:
         st.sidebar.header("Basic Information")
         amount = st.sidebar.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0, value=100000.0)
@@ -71,8 +77,12 @@ def input_initial_data(prices, language):
             start_date = st.date_input("First Purchase Date", value=start_default, min_value=min_date, max_value=max_date)
         with col2:
             end_date = st.date_input("Last Purchase Date", value=end_default, min_value=min_date, max_value=max_date)
+        
         st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
         frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
+        
+        default_tranche = 250.0 if frequency in ["Weekly"] else 1000.0 if frequency in ["Monthly"] else 3250.0
+        tranche_amount = st.sidebar.number_input("Amount of Each Tranche (EUR)", min_value=0.0, step=50.0, value=default_tranche)
 
     # Koszty zakupu
     st.sidebar.header("Koszt zakupu metali (%)")
@@ -80,9 +90,6 @@ def input_initial_data(prices, language):
     silver_markup = st.sidebar.number_input("Srebro (Silver) %", min_value=0.0, max_value=100.0, value=13.5, step=0.1)
     platinum_markup = st.sidebar.number_input("Platyna (Platinum) %", min_value=0.0, max_value=100.0, value=14.3, step=0.1)
     palladium_markup = st.sidebar.number_input("Pallad (Palladium) %", min_value=0.0, max_value=100.0, value=16.9, step=0.1)
-
-    default_tranche = 250.0 if frequency in ["Tygodniowa", "Weekly"] else 1000.0 if frequency in ["Miesięczna", "Monthly"] else 3250.0
-    tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)" if language == "Polski" else "Amount of Each Tranche (EUR)", min_value=0.0, step=50.0, value=default_tranche)
 
     return amount, start_date, end_date, frequency, tranche_amount, gold_markup, silver_markup, platinum_markup, palladium_markup
 
