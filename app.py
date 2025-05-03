@@ -3,6 +3,9 @@ import pandas as pd
 import os
 import datetime
 
+# Stałe globalne
+GRAMS_IN_TROY_OUNCE = 31.1034768
+
 # Konfiguracja strony
 st.set_page_config(page_title="Strategia Majątku w Metalach", page_icon="💰", layout="centered")
 
@@ -16,8 +19,8 @@ def load_metal_prices():
     try:
         prices = pd.read_csv("lbma_data.csv", parse_dates=["Date"])
         prices.set_index("Date", inplace=True)
-        
-        # Standaryzacja nazw kolumn
+
+        # Standaryzacja kolumn
         prices.columns = [col.strip().capitalize() for col in prices.columns]
         prices = prices.rename(columns={
             "Gold": "Gold",
@@ -31,7 +34,7 @@ def load_metal_prices():
         st.error("Brak pliku lbma_data.csv. / Missing lbma_data.csv file.")
         return None
 
-# Funkcja wczytania danych inflacyjnych
+# Funkcja wczytania inflacji
 def load_inflation(language):
     if language == "Polski":
         filename = "inflacja-PL.csv"
@@ -40,20 +43,25 @@ def load_inflation(language):
         if not os.path.isfile(filename):
             filename = "inflacja-PL.csv"
     try:
-        try:
-            inflation = pd.read_csv(filename, encoding='utf-8')
-        except UnicodeDecodeError:
-            inflation = pd.read_csv(filename, encoding='cp1250')
+        inflation = pd.read_csv(filename, encoding='utf-8')
         if inflation.columns[0] != "Date":
             inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
         inflation["Date"] = pd.to_datetime(inflation["Date"], errors='coerce')
         inflation.set_index("Date", inplace=True)
         return inflation
     except FileNotFoundError:
-        st.error("Brak pliku inflacyjnego. / Missing inflation data file.")
+        st.error("Brak pliku inflacyjnego.")
         return None
 
-# Funkcja formularza danych podstawowych
+# Funkcja pomocnicza: znajdź najbliższą datę z ceną
+def get_next_available_price(prices, date):
+    future_dates = prices.index[prices.index >= pd.to_datetime(date)]
+    if not future_dates.empty:
+        return prices.loc[future_dates[0]]
+    else:
+        return None
+
+# Formularz danych podstawowych
 def input_initial_data(prices, language):
     min_date = prices.index.min().date()
     max_date = prices.index.max().date()
@@ -74,11 +82,8 @@ def input_initial_data(prices, language):
         
         st.sidebar.subheader("Zakupy systematyczne (transze odnawialne)")
         frequency = st.sidebar.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
-        
-        # Kwota transzy OD RAZU pod periodycznością
-        default_tranche = 250.0 if frequency in ["Tygodniowa"] else 1000.0 if frequency in ["Miesięczna"] else 3250.0
+        default_tranche = 250.0 if frequency == "Tygodniowa" else 1000.0 if frequency == "Miesięczna" else 3250.0
         tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)", min_value=0.0, step=50.0, value=default_tranche)
-        
     else:
         st.sidebar.header("Basic Information")
         amount = st.sidebar.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0, value=100000.0)
@@ -87,14 +92,12 @@ def input_initial_data(prices, language):
             start_date = st.date_input("First Purchase Date", value=start_default, min_value=min_date, max_value=max_date)
         with col2:
             end_date = st.date_input("Last Purchase Date", value=end_default, min_value=min_date, max_value=max_date)
-        
+
         st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
         frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
-        
-        default_tranche = 250.0 if frequency in ["Weekly"] else 1000.0 if frequency in ["Monthly"] else 3250.0
+        default_tranche = 250.0 if frequency == "Weekly" else 1000.0 if frequency == "Monthly" else 3250.0
         tranche_amount = st.sidebar.number_input("Amount of Each Tranche (EUR)", min_value=0.0, step=50.0, value=default_tranche)
 
-    # Koszty zakupu
     st.sidebar.header("Koszt zakupu metali (%)")
     gold_markup = st.sidebar.number_input("Złoto (Gold) %", min_value=0.0, max_value=100.0, value=9.90, step=0.1)
     silver_markup = st.sidebar.number_input("Srebro (Silver) %", min_value=0.0, max_value=100.0, value=13.5, step=0.1)
@@ -107,13 +110,13 @@ def input_initial_data(prices, language):
 def select_strategy(language):
     if language == "Polski":
         st.sidebar.header("Wybór strategii")
-        strategy = st.sidebar.radio("Wybierz strategię", ("FIXED", "MOMENTUM", "VALUE"))
+        strategy = st.sidebar.radio("Wybierz strategię", ("FIXED",))
     else:
         st.sidebar.header("Strategy Selection")
-        strategy = st.sidebar.radio("Choose a strategy", ("FIXED", "MOMENTUM", "VALUE"))
+        strategy = st.sidebar.radio("Choose a strategy", ("FIXED",))
     return strategy
 
-# Funkcja ustawienia proporcji FIXED
+# Funkcja ustawienia proporcji
 def fixed_allocation(language):
     st.subheader("Ustaw proporcje metali / Set metal proportions")
     gold = st.slider("Złoto / Gold (%)", 0, 100, 40, step=5)
@@ -131,53 +134,52 @@ def fixed_allocation(language):
 
     return gold, silver, platinum, palladium
 
-# Funkcja symulacji FIXED
+# Symulacja strategii FIXED
 def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount,
                              gold_pct, silver_pct, platinum_pct, palladium_pct,
                              prices, gold_markup, silver_markup, platinum_markup, palladium_markup):
     freq_map = {"Tygodniowa": "W", "Miesięczna": "M", "Kwartalna": "Q", "Weekly": "W", "Monthly": "M", "Quarterly": "Q"}
     schedule = pd.date_range(start=start_date, end=end_date, freq=freq_map.get(frequency, "M"))
-    portfolio = pd.DataFrame(index=schedule, columns=["Gold", "Silver", "Platinum", "Palladium"])
-    portfolio = portfolio.fillna(0.0)
+    portfolio = pd.DataFrame(index=schedule, columns=["Gold", "Silver", "Platinum", "Palladium"]).fillna(0.0)
 
     for date in schedule:
-        if date in prices.index:
-            price_gold_g = prices.loc[date, "Gold"] / 31.1034768
-            price_silver_g = prices.loc[date, "Silver"] / 31.1034768
-            price_platinum_g = prices.loc[date, "Platinum"] / 31.1034768
-            price_palladium_g = prices.loc[date, "Palladium"] / 31.1034768
+        row = get_next_available_price(prices, date)
+        if row is not None:
+            price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
+            price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
+            price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
+            price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
 
-            # Ceny z marżą
             price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
             price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
             price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
             price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
 
             investment = tranche_amount
-
             portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
             portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
             portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
             portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
 
-    portfolio_cumsum = portfolio.cumsum()
-    return portfolio_cumsum
+    return portfolio.cumsum()
 
-# Funkcja przeliczenia wartości depozytu wg spot
+# Funkcja wyceny wg cen spot
 def calculate_portfolio_value_spot(portfolio, prices):
     common_dates = portfolio.index.intersection(prices.index)
-    prices_g = prices.loc[common_dates] / 31.1034768
+    if common_dates.empty:
+        st.error("Brak wspólnych dat pomiędzy portfelem a cenami.")
+        return pd.Series()
+
+    prices_g = prices.loc[common_dates] / GRAMS_IN_TROY_OUNCE
     value = (portfolio.loc[common_dates]["Gold"] * prices_g["Gold"] +
              portfolio.loc[common_dates]["Silver"] * prices_g["Silver"] +
              portfolio.loc[common_dates]["Platinum"] * prices_g["Platinum"] +
              portfolio.loc[common_dates]["Palladium"] * prices_g["Palladium"])
     return value
 
-# Główne wywołanie aplikacji
+# Główna funkcja
 def main():
     st.title("💼 Strategia Budowy Majątku w Metalach")
-    st.write("Wprowadź dane w panelu bocznym i obserwuj wyniki tutaj.")
-
     language = select_language()
     prices = load_metal_prices()
     inflation = load_inflation(language)
@@ -186,19 +188,9 @@ def main():
         amount, start_date, end_date, frequency, tranche_amount, gold_markup, silver_markup, platinum_markup, palladium_markup = input_initial_data(prices, language)
         strategy = select_strategy(language)
 
-        st.header("Podsumowanie Wyborów / Summary")
-        st.write(f"**Strategia / Strategy**: {strategy}")
-        st.write(f"**Kwota początkowa / Initial Amount**: {amount} EUR")
-        st.write(f"**Data pierwszego zakupu / First Purchase Date**: {start_date}")
-        st.write(f"**Data ostatniego zakupu / Last Purchase Date**: {end_date}")
-        st.write(f"**Periodyczność / Frequency**: {frequency}")
-        st.write(f"**Kwota transzy / Tranche Amount**: {tranche_amount} EUR")
-
         if strategy == "FIXED":
             gold, silver, platinum, palladium = fixed_allocation(language)
             if gold + silver + platinum + palladium == 100:
-                st.success("Strategia FIXED ustawiona poprawnie!")
-
                 if st.button("Rozpocznij symulację / Start Simulation"):
                     portfolio = simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amount,
                                                         gold, silver, platinum, palladium,
@@ -211,10 +203,6 @@ def main():
                         portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
                         st.subheader("Wartość depozytu wg cen spot (EUR)")
                         st.line_chart(portfolio_value_spot.fillna(0))
-
-                        st.success("Symulacja zakończona sukcesem!")
-                    else:
-                        st.error("Brak danych w wybranym zakresie dat! Proszę zmienić daty.")
 
 if __name__ == "__main__":
     main()
