@@ -55,21 +55,39 @@ def get_next_available_price(prices, date):
 
 def input_form(prices):
     st.sidebar.header("Parametry Inwestycji")
-    min_date, max_date = prices.index.min().date(), prices.index.max().date()
+    
+    # Jeśli dane są puste, ustaw sztuczne daty
+    if prices is None or prices.empty:
+        st.error("Brak danych o cenach metali! Używam domyślnych dat.")
+        min_date = datetime.date(2000, 1, 1)
+        max_date = datetime.date.today()
+    else:
+        min_date, max_date = prices.index.min().date(), prices.index.max().date()
+    
     today = datetime.date.today()
+    if today > max_date:
+        today = max_date
+
     amount = st.sidebar.number_input("Kwota Początkowa (EUR)", min_value=1000.0, step=1000.0, value=100000.0)
+
     col1, col2 = st.sidebar.columns(2)
     with col1:
-        start_date = st.sidebar.date_input("Data Startu", value=today - datetime.timedelta(days=365*5), min_value=min_date, max_value=max_date)
+        start_default = today - datetime.timedelta(days=5*365)
+        if start_default < min_date:
+            start_default = min_date
+        start_date = st.sidebar.date_input("Data Startu", value=start_default, min_value=min_date, max_value=max_date)
     with col2:
         end_date = st.sidebar.date_input("Data Końca", value=today, min_value=min_date, max_value=max_date)
+
     frequency = st.sidebar.selectbox("Częstotliwość Zakupów", ["Jednorazowa", "Tygodniowa", "Miesięczna", "Kwartalna", "Roczna"])
     tranche_amount = st.sidebar.number_input("Kwota Transzy (EUR)", min_value=0.0, step=100.0, value=1000.0)
+
     st.sidebar.header("Marże Zakupowe (%)")
     gold_markup = st.sidebar.number_input("Złoto", 0.0, 50.0, 9.9)
     silver_markup = st.sidebar.number_input("Srebro", 0.0, 50.0, 13.5)
     platinum_markup = st.sidebar.number_input("Platyna", 0.0, 50.0, 14.3)
     palladium_markup = st.sidebar.number_input("Pallad", 0.0, 50.0, 16.9)
+
     return amount, start_date, end_date, frequency, tranche_amount, gold_markup, silver_markup, platinum_markup, palladium_markup
 
 def simulate_fixed(amount, start_date, end_date, frequency, tranche_amount, prices, markups):
