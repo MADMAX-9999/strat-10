@@ -1,9 +1,11 @@
-# Aplikacja Streamlit - Wersja 0.8
-# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED z wyceną portfela i poprawą kodowania oraz nazw kolumn
+# Aplikacja Streamlit - Wersja 0.9
+# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED
+# + Domyślne wartości danych podstawowych + poprawa zakresu dat
 
 import streamlit as st
 import pandas as pd
 import os
+import datetime
 
 # Konfiguracja strony
 st.set_page_config(page_title="Strategia Majątku w Metalach", page_icon="💰", layout="centered")
@@ -30,47 +32,56 @@ def load_inflation(language):
     else:
         filename = "inflacja-EN.csv"
         if not os.path.isfile(filename):
-            filename = "inflacja-PL.csv"  # Domyślnie PL jeśli brak EN
+            filename = "inflacja-PL.csv"
     try:
         try:
             inflation = pd.read_csv(filename, encoding='utf-8')
         except UnicodeDecodeError:
             inflation = pd.read_csv(filename, encoding='cp1250')
-
         if inflation.columns[0] not in ["Date"]:
             inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
         inflation["Date"] = pd.to_datetime(inflation["Date"], errors='coerce')
         inflation.set_index("Date", inplace=True)
-
         return inflation
     except FileNotFoundError:
         st.error("Brak pliku inflacyjnego. / Missing inflation data file.")
         return None
 
 # Funkcja formularza podstawowych danych
-def input_initial_data(language):
+def input_initial_data(prices, language):
+    min_date = prices.index.min().date()
+    max_date = prices.index.max().date()
+    today = datetime.date.today()
+    end_default = today if today <= max_date else max_date
+    start_default = end_default - datetime.timedelta(days=365*20)
+    if start_default < min_date:
+        start_default = min_date
+
     if language == "Polski":
         st.sidebar.header("Dane podstawowe")
-        amount = st.sidebar.number_input("Kwota początkowej alokacji (EUR)", min_value=0.0, step=100.0)
+        amount = st.sidebar.number_input("Kwota początkowej alokacji (EUR)", min_value=0.0, step=100.0, value=100000.0)
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            start_date = st.date_input("Data pierwszego zakupu")
+            start_date = st.date_input("Data pierwszego zakupu", value=start_default, min_value=min_date, max_value=max_date)
         with col2:
-            end_date = st.date_input("Data ostatniego zakupu")
+            end_date = st.date_input("Data ostatniego zakupu", value=end_default, min_value=min_date, max_value=max_date)
         st.sidebar.subheader("Zakupy systematyczne (transze odnawialne)")
         frequency = st.sidebar.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
-        tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)", min_value=0.0, step=50.0)
     else:
         st.sidebar.header("Basic Information")
-        amount = st.sidebar.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0)
+        amount = st.sidebar.number_input("Initial Allocation Amount (EUR)", min_value=0.0, step=100.0, value=100000.0)
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            start_date = st.date_input("First Purchase Date")
+            start_date = st.date_input("First Purchase Date", value=start_default, min_value=min_date, max_value=max_date)
         with col2:
-            end_date = st.date_input("Last Purchase Date")
+            end_date = st.date_input("Last Purchase Date", value=end_default, min_value=min_date, max_value=max_date)
         st.sidebar.subheader("Recurring Purchases (Renewable Tranches)")
         frequency = st.sidebar.selectbox("Frequency", ("Weekly", "Monthly", "Quarterly"))
-        tranche_amount = st.sidebar.number_input("Amount of Each Tranche (EUR)", min_value=0.0, step=50.0)
+
+    # Domyślna kwota transzy w zależności od wybranej częstotliwości
+    default_tranche = 250.0 if frequency in ["Tygodniowa", "Weekly"] else 1000.0 if frequency in ["Miesięczna", "Monthly"] else 3250.0
+    tranche_amount = st.sidebar.number_input("Kwota każdej transzy (EUR)" if language == "Polski" else "Amount of Each Tranche (EUR)", min_value=0.0, step=50.0, value=default_tranche)
+
     return amount, start_date, end_date, frequency, tranche_amount
 
 # Funkcja wyboru strategii
@@ -130,13 +141,13 @@ def main():
     st.write("Wprowadź dane w panelu bocznym i obserwuj wyniki tutaj.")
 
     language = select_language()
-    amount, start_date, end_date, frequency, tranche_amount = input_initial_data(language)
-    strategy = select_strategy(language)
-
     prices = load_metal_prices()
     inflation = load_inflation(language)
 
     if prices is not None and inflation is not None:
+        amount, start_date, end_date, frequency, tranche_amount = input_initial_data(prices, language)
+        strategy = select_strategy(language)
+
         st.header("Podsumowanie Wyborów / Summary")
         st.write(f"**Strategia / Strategy**: {strategy}")
         st.write(f"**Kwota początkowa / Initial Amount**: {amount} EUR")
@@ -163,4 +174,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
