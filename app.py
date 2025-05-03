@@ -152,6 +152,29 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
     schedule = pd.date_range(start=start_date, end=end_date, freq=freq_map.get(frequency, "M"))
     portfolio = pd.DataFrame(index=schedule, columns=["Gold", "Silver", "Platinum", "Palladium"]).fillna(0.0)
 
+    # --- Inwestycja początkowa ---
+    initial_row = get_next_available_price(prices, start_date)
+    if initial_row is not None:
+        try:
+            price_gold_g = initial_row["Gold"] / GRAMS_IN_TROY_OUNCE
+            price_silver_g = initial_row["Silver"] / GRAMS_IN_TROY_OUNCE
+            price_platinum_g = initial_row["Platinum"] / GRAMS_IN_TROY_OUNCE
+            price_palladium_g = initial_row["Palladium"] / GRAMS_IN_TROY_OUNCE
+
+            price_gold_g_buy = price_gold_g * (1 + gold_markup / 100)
+            price_silver_g_buy = price_silver_g * (1 + silver_markup / 100)
+            price_platinum_g_buy = price_platinum_g * (1 + platinum_markup / 100)
+            price_palladium_g_buy = price_palladium_g * (1 + palladium_markup / 100)
+
+            portfolio.loc[start_date, "Gold"] += (amount * gold_pct / 100) / price_gold_g_buy
+            portfolio.loc[start_date, "Silver"] += (amount * silver_pct / 100) / price_silver_g_buy
+            portfolio.loc[start_date, "Platinum"] += (amount * platinum_pct / 100) / price_platinum_g_buy
+            portfolio.loc[start_date, "Palladium"] += (amount * palladium_pct / 100) / price_palladium_g_buy
+
+        except KeyError:
+            pass
+
+    # --- Regularne zakupy (transze) ---
     for date in schedule:
         row = get_next_available_price(prices, date)
         if row is not None:
@@ -167,13 +190,14 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
                 price_palladium_g_buy = price_palladium_g * (1 + palladium_markup / 100)
 
                 investment = tranche_amount
-                portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
-                portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
-                portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
-                portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
+                portfolio.loc[date, "Gold"] += (investment * gold_pct / 100) / price_gold_g_buy
+                portfolio.loc[date, "Silver"] += (investment * silver_pct / 100) / price_silver_g_buy
+                portfolio.loc[date, "Platinum"] += (investment * platinum_pct / 100) / price_platinum_g_buy
+                portfolio.loc[date, "Palladium"] += (investment * palladium_pct / 100) / price_palladium_g_buy
 
             except KeyError:
                 continue
+
     return portfolio.cumsum()
 
 # Funkcja wyceny wg cen spot
