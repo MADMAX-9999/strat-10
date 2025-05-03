@@ -1,5 +1,5 @@
-# Aplikacja Streamlit - Wersja 0.6
-# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED z wyceną portfela
+# Aplikacja Streamlit - Wersja 0.7
+# Budowanie strategii inwestycyjnej w metale szlachetne z obsługą danych historycznych, inflacji i symulacji dla FIXED z wyceną portfela i poprawą kodowania
 
 import streamlit as st
 import pandas as pd
@@ -23,7 +23,7 @@ def load_metal_prices():
         st.error("Brak pliku lbma_data.csv. / Missing lbma_data.csv file.")
         return None
 
-# Funkcja wczytania danych inflacyjnych
+# Funkcja wczytania danych inflacyjnych z obsługą kodowania
 def load_inflation(language):
     if language == "Polski":
         filename = "inflacja-PL.csv"
@@ -32,7 +32,10 @@ def load_inflation(language):
         if not os.path.isfile(filename):
             filename = "inflacja-PL.csv"  # Domyślnie PL jeśli brak EN
     try:
-        inflation = pd.read_csv(filename, parse_dates=["Date"])
+        try:
+            inflation = pd.read_csv(filename, encoding='utf-8', parse_dates=["Date"])
+        except UnicodeDecodeError:
+            inflation = pd.read_csv(filename, encoding='cp1250', parse_dates=["Date"])
         inflation.set_index("Date", inplace=True)
         return inflation
     except FileNotFoundError:
