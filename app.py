@@ -134,12 +134,26 @@ silver_markup = st.sidebar.number_input("Srebro", 0.0, 50.0, 13.5)
 platinum_markup = st.sidebar.number_input("Platyna", 0.0, 50.0, 14.3)
 palladium_markup = st.sidebar.number_input("Pallad", 0.0, 50.0, 16.9)
 
+# Suwaki dla proporcji metali
+st.sidebar.header("Proporcje Metali (%)")
+gold_pct = st.sidebar.slider("Złoto (%)", 0, 100, 40, step=5)
+silver_pct = st.sidebar.slider("Srebro (%)", 0, 100, 30, step=5)
+platinum_pct = st.sidebar.slider("Platyna (%)", 0, 100, 15, step=5)
+palladium_pct = st.sidebar.slider("Pallad (%)", 0, 100, 15, step=5)
+
+sum_pct = gold_pct + silver_pct + platinum_pct + palladium_pct
+if sum_pct == 100:
+    st.sidebar.success(f"✅ Suma: {sum_pct}%")
+else:
+    st.sidebar.error(f"❌ Suma: {sum_pct}% (Musi być 100%)")
+
 # Symulacja
-if st.sidebar.button("Symuluj Strategię FIXED"):
+if st.sidebar.button("Symuluj Strategię FIXED") and sum_pct == 100:
     with st.spinner("Symuluję strategię..."):
         portfolio_cumsum = simulate_fixed_strategy(
             amount, start_date, end_date, frequency, tranche_amount,
-            prices, gold_markup, silver_markup, platinum_markup, palladium_markup
+            prices, gold_markup, silver_markup, platinum_markup, palladium_markup,
+            gold_pct, silver_pct, platinum_pct, palladium_pct
         )
 
         prices_now = map_prices_to_portfolio(prices, portfolio_cumsum.index)
