@@ -152,11 +152,14 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
 
     for date in schedule:
         row = get_next_available_price(prices, date)
-        if row is not None:
-            price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
-            price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
-            price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
-            price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
+       if row is not None:
+    try:
+        price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
+        price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
+        price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
+        price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
+    except KeyError:
+        continue  # Pomijamy dzień, jeśli nadal brakuje ceny
 
             price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
             price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
