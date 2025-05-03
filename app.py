@@ -29,6 +29,10 @@ def load_metal_prices():
             "Palladium": "Palladium"
         })
 
+        if prices.empty:
+            st.error("Plik lbma_data.csv nie zawiera danych.")
+            return None
+
         return prices
     except FileNotFoundError:
         st.error("Brak pliku lbma_data.csv. / Missing lbma_data.csv file.")
@@ -47,7 +51,7 @@ def load_inflation(language):
             inflation = pd.read_csv(filename, encoding='utf-8')
         except UnicodeDecodeError:
             inflation = pd.read_csv(filename, encoding='cp1250')
-        
+
         if inflation.columns[0] != "Date":
             inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
 
@@ -85,7 +89,7 @@ def input_initial_data(prices, language):
             start_date = st.date_input("Data pierwszego zakupu", value=start_default, min_value=min_date, max_value=max_date)
         with col2:
             end_date = st.date_input("Data ostatniego zakupu", value=end_default, min_value=min_date, max_value=max_date)
-        
+
         st.sidebar.subheader("Zakupy systematyczne (transze odnawialne)")
         frequency = st.sidebar.selectbox("Periodyczność", ("Tygodniowa", "Miesięczna", "Kwartalna"))
         default_tranche = 250.0 if frequency == "Tygodniowa" else 1000.0 if frequency == "Miesięczna" else 3250.0
@@ -150,7 +154,6 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
 
     for date in schedule:
         row = get_next_available_price(prices, date)
-
         if row is not None:
             try:
                 price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
@@ -158,10 +161,10 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
                 price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
                 price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
 
-                price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
-                price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
-                price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
-                price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
+                price_gold_g_buy = price_gold_g * (1 + gold_markup / 100)
+                price_silver_g_buy = price_silver_g * (1 + silver_markup / 100)
+                price_platinum_g_buy = price_platinum_g * (1 + platinum_markup / 100)
+                price_palladium_g_buy = price_palladium_g * (1 + palladium_markup / 100)
 
                 investment = tranche_amount
                 portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
@@ -198,11 +201,13 @@ def main():
         amount, start_date, end_date, frequency, tranche_amount, gold_markup, silver_markup, platinum_markup, palladium_markup = input_initial_data(prices, language)
         strategy = select_strategy(language)
 
+        run_simulation = False  # dodane zabezpieczenie
+        
         if strategy == "FIXED":
             gold, silver, platinum, palladium = fixed_allocation(language)
             if gold + silver + platinum + palladium == 100:
                 run_simulation = st.button("Rozpocznij symulację / Start Simulation")
-        
+
         if run_simulation:
             portfolio = simulate_fixed_strategy(
                 amount, start_date, end_date, frequency, tranche_amount,
@@ -210,13 +215,16 @@ def main():
                 prices, gold_markup, silver_markup, platinum_markup, palladium_markup
             )
 
-            if not portfolio.empty:
-                st.subheader("Zakupione ilości metali (gramy)")
-                st.line_chart(portfolio.fillna(0))
+            if portfolio is None or portfolio.empty:
+                st.warning("Portfel jest pusty. Upewnij się, że dane wejściowe są poprawne.")
+                return
 
-                portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
-                st.subheader("Wartość depozytu wg cen spot (EUR)")
-                st.line_chart(portfolio_value_spot.fillna(0))
+            st.subheader("Zakupione ilości metali (gramy)")
+            st.line_chart(portfolio.fillna(0).resample('M').sum())
+
+            portfolio_value_spot = calculate_portfolio_value_spot(portfolio, prices)
+            st.subheader("Wartość depozytu wg cen spot (EUR)")
+            st.line_chart(portfolio_value_spot.fillna(0).resample('M').mean())
 
 if __name__ == "__main__":
     main()
