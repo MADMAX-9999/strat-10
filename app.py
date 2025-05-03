@@ -16,6 +16,16 @@ def load_metal_prices():
     try:
         prices = pd.read_csv("lbma_data.csv", parse_dates=["Date"])
         prices.set_index("Date", inplace=True)
+        
+        # Standaryzacja nazw kolumn
+        prices.columns = [col.strip().capitalize() for col in prices.columns]
+        prices = prices.rename(columns={
+            "Gold": "Gold",
+            "Silver": "Silver",
+            "Platinum": "Platinum",
+            "Palladium": "Palladium"
+        })
+
         return prices
     except FileNotFoundError:
         st.error("Brak pliku lbma_data.csv. / Missing lbma_data.csv file.")
