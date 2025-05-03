@@ -567,4 +567,4 @@ def simulate_dynamic_strategy(amount, start_date, end_date, frequency, tranche_a
             portfolio.loc[schedule[0], "Gold_Pct"] = gold_pct
             portfolio.loc[schedule[0], "Silver_Pct"] = silver_pct
             portfolio.loc[schedule[0], "Platinum_Pct"] = platinum_pct
-            portfolio.loc[schedule
+            portfolio.loc[schedule]
