@@ -151,15 +151,28 @@ def simulate_fixed_strategy(amount, start_date, end_date, frequency, tranche_amo
     portfolio = pd.DataFrame(index=schedule, columns=["Gold", "Silver", "Platinum", "Palladium"]).fillna(0.0)
 
     for date in schedule:
-        row = get_next_available_price(prices, date)
-       if row is not None:
-    try:
-        price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
-        price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
-        price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
-        price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
-    except KeyError:
-        continue  # Pomijamy dzień, jeśli nadal brakuje ceny
+    row = get_next_available_price(prices, date)
+
+    if row is not None:
+        try:
+            price_gold_g = row["Gold"] / GRAMS_IN_TROY_OUNCE
+            price_silver_g = row["Silver"] / GRAMS_IN_TROY_OUNCE
+            price_platinum_g = row["Platinum"] / GRAMS_IN_TROY_OUNCE
+            price_palladium_g = row["Palladium"] / GRAMS_IN_TROY_OUNCE
+
+            price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
+            price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
+            price_platinum_g_buy = price_platinum_g * (1 + platinum_markup/100)
+            price_palladium_g_buy = price_palladium_g * (1 + palladium_markup/100)
+
+            investment = tranche_amount
+            portfolio.loc[date, "Gold"] = (investment * gold_pct / 100) / price_gold_g_buy
+            portfolio.loc[date, "Silver"] = (investment * silver_pct / 100) / price_silver_g_buy
+            portfolio.loc[date, "Platinum"] = (investment * platinum_pct / 100) / price_platinum_g_buy
+            portfolio.loc[date, "Palladium"] = (investment * palladium_pct / 100) / price_palladium_g_buy
+
+        except KeyError:
+            continue  # Jeżeli nadal nie ma jakiejś ceny – pomijamy dzień
 
             price_gold_g_buy = price_gold_g * (1 + gold_markup/100)
             price_silver_g_buy = price_silver_g * (1 + silver_markup/100)
