@@ -43,9 +43,15 @@ def load_inflation(language):
         if not os.path.isfile(filename):
             filename = "inflacja-PL.csv"
     try:
-        inflation = pd.read_csv(filename, encoding='utf-8')
+        try:
+            inflation = pd.read_csv(filename, encoding='utf-8')
+        except UnicodeDecodeError:
+            inflation = pd.read_csv(filename, encoding='cp1250')
+
+        # Naprawiamy potencjalnie złe nagłówki
         if inflation.columns[0] != "Date":
             inflation.rename(columns={inflation.columns[0]: "Date"}, inplace=True)
+
         inflation["Date"] = pd.to_datetime(inflation["Date"], errors='coerce')
         inflation.set_index("Date", inplace=True)
         return inflation
