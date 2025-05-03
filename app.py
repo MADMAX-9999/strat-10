@@ -62,10 +62,12 @@ def load_inflation(language):
 # Funkcja pomocnicza: znajdź najbliższą datę z ceną
 def get_next_available_price(prices, date):
     future_dates = prices.index[prices.index >= pd.to_datetime(date)]
-    if not future_dates.empty:
-        return prices.loc[future_dates[0]]
-    else:
-        return None
+
+    for future_date in future_dates:
+        row = prices.loc[future_date]
+        if "Gold" in row and pd.notna(row["Gold"]):
+            return row
+    return None
 
 # Formularz danych podstawowych
 def input_initial_data(prices, language):
