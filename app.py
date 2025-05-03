@@ -120,6 +120,19 @@ def fixed_allocation(language):
             for m in others:
                 st.session_state[m] = st.session_state[m] / current_sum * total_other
 
+        # Zaokrąglenie wartości
+        for m in metals:
+            st.session_state[m] = round(st.session_state[m])
+
+        # Korekta sumy do 100%
+        correction = 100 - sum(st.session_state[m] for m in metals)
+        if correction != 0:
+            # Szukamy metalu, który można skorygować
+            for m in others + [changed_metal]:
+                if 0 <= st.session_state[m] + correction <= 100:
+                    st.session_state[m] += correction
+                    break
+
     # Suwaki
     gold = st.slider("Złoto / Gold (%)", 0, 100, value=int(st.session_state.gold),
                      key="gold", on_change=update_sliders, args=("gold", st.session_state.gold))
@@ -132,9 +145,9 @@ def fixed_allocation(language):
 
     # Pozycje końcowe
     total = st.session_state.gold + st.session_state.silver + st.session_state.platinum + st.session_state.palladium
-    st.write(f"**Suma:** {total:.2f}%")
+    st.write(f"**Suma:** {total}%")
 
-    if abs(total - 100) > 0.5:
+    if total != 100:
         st.warning("Suma odbiega od 100%! Proszę dostosować suwaki.")
 
     return st.session_state.gold, st.session_state.silver, st.session_state.platinum, st.session_state.palladium
