@@ -87,6 +87,22 @@ def simulate_fixed_strategy(
     portfolio_cumsum = portfolio.cumsum()
     return portfolio_cumsum
 
+def map_prices_to_portfolio(prices, portfolio_index):
+    available_dates = prices.index
+    mapped_dates = []
+    for d in portfolio_index:
+        if d in available_dates:
+            mapped_dates.append(d)
+        else:
+            future_dates = available_dates[available_dates >= d]
+            if not future_dates.empty:
+                mapped_dates.append(future_dates[0])
+            else:
+                mapped_dates.append(available_dates[-1])  # ostatnia dostępna cena
+    prices_now = prices.loc[mapped_dates]
+    prices_now.index = portfolio_index
+    return prices_now
+
 # --- Główna aplikacja ---
 
 st.set_page_config(page_title="Strategia FIXED – Majątek w Metalach", page_icon="💰", layout="wide")
@@ -126,7 +142,7 @@ if st.sidebar.button("Symuluj Strategię FIXED"):
             prices, gold_markup, silver_markup, platinum_markup, palladium_markup
         )
 
-        prices_now = prices.loc[portfolio_cumsum.index]
+        prices_now = map_prices_to_portfolio(prices, portfolio_cumsum.index)
         valuation = (
             portfolio_cumsum["Gold_g"] * prices_now["Gold"] / GRAMS_IN_TROY_OUNCE +
             portfolio_cumsum["Silver_g"] * prices_now["Silver"] / GRAMS_IN_TROY_OUNCE +
