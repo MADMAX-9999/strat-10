@@ -422,79 +422,30 @@ def simulate(allocation):
     history = []
     invested = 0.0
 
-    # 👉 Poprawiamy zakres czasu do initial_date → end_purchase_date
     all_dates = data.loc[initial_date:end_purchase_date].index
-
-    # 👉 Poprawiamy też generowanie dat zakupów
     purchase_dates = generate_purchase_dates(initial_date, purchase_freq, purchase_day, end_purchase_date)
 
     last_year = None
+    last_purchase_date = pd.to_datetime(initial_date)
 
-    
-
-    # 🔵 Dodajemy tutaj inicjalizację pamięci ReBalancingu:
     last_rebalance_dates = {
         "rebalance_1": None,
         "rebalance_2": None
     }
 
-    # 🔵 Tu wstawiamy poprawioną funkcję apply_rebalance:
-    def apply_rebalance(d, label, condition_enabled, threshold_percent):
-        nonlocal last_rebalance_dates   # zamiast global → poprawne dla funkcji zagnieżdżonych!
+    # Funkcja pomocnicza: oblicz zmiany cen od daty A do daty B
+    def calculate_metal_changes(start_date, end_date):
+        changes = {}
+        prices_start = data.loc[start_date]
+        prices_end = data.loc[end_date]
+        for metal in ["Gold", "Silver", "Platinum", "Palladium"]:
+            start_price = prices_start[metal + "_EUR"]
+            end_price = prices_end[metal + "_EUR"]
+            change = (end_price / start_price) - 1
+            changes[metal] = change
+        return changes
 
-        min_days_between_rebalances = 30  # minimalny odstęp w dniach (możesz zmienić)
-
-        last_date = last_rebalance_dates.get(label)
-        if last_date is not None and (d - last_date).days < min_days_between_rebalances:
-            return f"rebalancing_skipped_{label}_too_soon"
-
-        prices = data.loc[d]
-        total_value = sum(prices[m + "_EUR"] * portfolio[m] for m in allocation)
-
-        if total_value == 0:
-            return f"rebalancing_skipped_{label}_no_value"
-
-        current_shares = {
-            m: (prices[m + "_EUR"] * portfolio[m]) / total_value
-            for m in allocation
-        }
-
-        rebalance_trigger = False
-        for metal in allocation:
-            deviation = abs(current_shares[metal] - allocation[metal]) * 100
-            if deviation >= threshold_percent:
-                rebalance_trigger = True
-                break
-
-        if condition_enabled and not rebalance_trigger:
-            return f"rebalancing_skipped_{label}_no_deviation"
-
-        target_value = {m: total_value * allocation[m] for m in allocation}
-
-        for metal in allocation:
-            current_value = prices[metal + "_EUR"] * portfolio[metal]
-            diff = current_value - target_value[metal]
-
-            if diff > 0:
-                sell_price = prices[metal + "_EUR"] * (1 + buyback_discounts[metal] / 100)
-                grams_to_sell = min(diff / sell_price, portfolio[metal])
-                portfolio[metal] -= grams_to_sell
-                cash = grams_to_sell * sell_price
-
-                for buy_metal in allocation:
-                    needed_value = target_value[buy_metal] - prices[buy_metal + "_EUR"] * portfolio[buy_metal]
-                    if needed_value > 0:
-                        buy_price = prices[buy_metal + "_EUR"] * (1 + rebalance_markup[buy_metal] / 100)
-                        buy_grams = min(cash / buy_price, needed_value / buy_price)
-                        portfolio[buy_metal] += buy_grams
-                        cash -= buy_grams * buy_price
-                        if cash <= 0:
-                            break
-
-        last_rebalance_dates[label] = d
-        return label
-
-    # Początkowy zakup
+    # Początkowy zakup (standardowo, wg allocation)
     initial_ts = data.index[data.index.get_indexer([pd.to_datetime(initial_date)], method="nearest")][0]
     prices = data.loc[initial_ts]
     for metal, percent in allocation.items():
@@ -509,19 +460,43 @@ def simulate(allocation):
 
         if d in purchase_dates:
             prices = data.loc[d]
-            for metal, percent in allocation.items():
+
+            if trend_active:
+                # Oblicz zmiany cen od ostatniego zakupu do teraz
+                changes = calculate_metal_changes(last_purchase_date, d)
+                sorted_metals = sorted(changes.items(), key=lambda x: x[1], reverse=True)
+                metals_order = [metal for metal, change in sorted_metals]
+
+                trend_alloc = {
+                    metals_order[0]: trend_1 / 100,
+                    metals_order[1]: trend_2 / 100,
+                    metals_order[2]: trend_3 / 100,
+                    metals_order[3]: trend_4 / 100,
+                }
+            else:
+                # Standardowa alokacja
+                trend_alloc = allocation
+
+            for metal, percent in trend_alloc.items():
                 price = prices[metal + "_EUR"] * (1 + margins[metal] / 100)
                 grams = (purchase_amount * percent) / price
                 portfolio[metal] += grams
+
             invested += purchase_amount
             actions.append("recurring")
 
+            # 🔵 Aktualizacja daty ostatniego zakupu
+            last_purchase_date = d
+
+        # ReBalancing 1
         if rebalance_1 and d >= pd.to_datetime(rebalance_1_start) and d.month == rebalance_1_start.month and d.day == rebalance_1_start.day:
             actions.append(apply_rebalance(d, "rebalance_1", rebalance_1_condition, rebalance_1_threshold))
 
+        # ReBalancing 2
         if rebalance_2 and d >= pd.to_datetime(rebalance_2_start) and d.month == rebalance_2_start.month and d.day == rebalance_2_start.day:
             actions.append(apply_rebalance(d, "rebalance_2", rebalance_2_condition, rebalance_2_threshold))
 
+        # Koszty magazynowania co rok
         if last_year is None:
             last_year = d.year
 
@@ -562,16 +537,17 @@ def simulate(allocation):
         if actions:
             history.append((d, invested, dict(portfolio), ", ".join(actions)))
 
+    # Tworzenie dataframe wynikowego
     df_result = pd.DataFrame([{
-    "Date": h[0],
-    "Invested": h[1],
-    **{m: h[2][m] for m in allocation},
-    "Portfolio Value": sum(
-        data.loc[h[0]][m + "_EUR"] * (1 + buyback_discounts[m] / 100) * h[2][m]
-        for m in allocation
-    ),
-    "Akcja": h[3]
-} for h in history]).set_index("Date")
+        "Date": h[0],
+        "Invested": h[1],
+        **{m: h[2][m] for m in allocation},
+        "Portfolio Value": sum(
+            data.loc[h[0]][m + "_EUR"] * (1 + buyback_discounts[m] / 100) * h[2][m]
+            for m in allocation
+        ),
+        "Akcja": h[3]
+    } for h in history]).set_index("Date")
 
     return df_result
 
