@@ -432,7 +432,67 @@ def simulate(allocation):
         "rebalance_1": None,
         "rebalance_2": None
     }
+    
+def apply_rebalance(d, label, condition_enabled, threshold_percent):
+        nonlocal last_rebalance_dates
 
+        min_days_between_rebalances = 30  # minimalny odstęp w dniach
+
+        last_date = last_rebalance_dates.get(label)
+        if last_date is not None and (d - last_date).days < min_days_between_rebalances:
+            return f"rebalancing_skipped_{label}_too_soon"
+
+        prices = data.loc[d]
+        total_value = sum(prices[m + "_EUR"] * portfolio[m] for m in allocation)
+
+        if total_value == 0:
+            return f"rebalancing_skipped_{label}_no_value"
+
+        current_shares = {
+            m: (prices[m + "_EUR"] * portfolio[m]) / total_value
+            for m in allocation
+        }
+
+        rebalance_trigger = False
+        for metal in allocation:
+            deviation = abs(current_shares[metal] - allocation[metal]) * 100
+            if deviation >= threshold_percent:
+                rebalance_trigger = True
+                break
+
+        if condition_enabled and not rebalance_trigger:
+            return f"rebalancing_skipped_{label}_no_deviation"
+
+        target_value = {m: total_value * allocation[m] for m in allocation}
+
+        for metal in allocation:
+            current_value = prices[metal + "_EUR"] * portfolio[metal]
+            diff = current_value - target_value[metal]
+
+            if diff > 0:
+                sell_price = prices[metal + "_EUR"] * (1 + buyback_discounts[metal] / 100)
+                grams_to_sell = min(diff / sell_price, portfolio[metal])
+                portfolio[metal] -= grams_to_sell
+                cash = grams_to_sell * sell_price
+
+                for buy_metal in allocation:
+                    needed_value = target_value[buy_metal] - prices[buy_metal + "_EUR"] * portfolio[buy_metal]
+                    if needed_value > 0:
+                        buy_price = prices[buy_metal + "_EUR"] * (1 + rebalance_markup[buy_metal] / 100)
+                        buy_grams = min(cash / buy_price, needed_value / buy_price)
+                        portfolio[buy_metal] += buy_grams
+                        cash -= buy_grams * buy_price
+                        if cash <= 0:
+                            break
+
+        last_rebalance_dates[label] = d
+        return label
+
+
+
+
+
+    
     # Funkcja pomocnicza: oblicz zmiany cen od daty A do daty B
     def calculate_metal_changes(start_date, end_date):
         changes = {}
