@@ -5,15 +5,6 @@ import numpy as np
 import datetime
 import plotly.express as px
 
-# --- Główna aplikacja ---
-
-st.set_page_config(page_title="Strategia FIXED – Majątek w Metalach", page_icon="💰", layout="wide")
-
-st.title("📈 Strategia FIXED: Pierwszy zakup + Systematyczne dokupy")
-
-# Wybór języka
-language = st.sidebar.selectbox("Wybierz język / Choose language", ("Polski", "English"))
-
 # --- Stałe ---
 GRAMS_IN_TROY_OUNCE = 31.1034768
 
@@ -22,7 +13,6 @@ GRAMS_IN_TROY_OUNCE = 31.1034768
 def load_prices():
     try:
         df = pd.read_csv("lbma_data.csv", parse_dates=["Date"], sep=None, engine='python')
-        # Tutaj usunięto komunikat "Załadowano dane"
     except FileNotFoundError:
         st.sidebar.error("Brak pliku `lbma_data.csv` na serwerze. Proszę dodać ten plik.")
         st.stop()
@@ -44,7 +34,6 @@ def load_prices():
     df = df.rename(columns=rename_map)
     df = df.set_index("Date")
     if df.isnull().any().any():
-        st.sidebar.warning("Wykryto brakujące wartości w danych! Uzupełniam metodą 'ffill'.")
         df = df.fillna(method='ffill')
     return df
 
@@ -60,7 +49,8 @@ def simulate_fixed_strategy(
 ):
     freq_map = {
         "Jednorazowa": None, "Tygodniowa": "W", "Miesięczna": "M",
-        "Kwartalna": "Q", "Roczna": "A"
+        "Kwartalna": "Q", "Roczna": "A",
+        "One-time": None, "Weekly": "W", "Monthly": "M", "Quarterly": "Q", "Annual": "A"
     }
     
     if freq_map[frequency] is None:
@@ -107,7 +97,7 @@ def map_prices_to_portfolio(prices, portfolio_index):
             if not future_dates.empty:
                 mapped_dates.append(future_dates[0])
             else:
-                mapped_dates.append(available_dates[-1])  # ostatnia dostępna cena
+                mapped_dates.append(available_dates[-1])
     prices_now = prices.loc[mapped_dates]
     prices_now.index = portfolio_index
     return prices_now
@@ -118,43 +108,68 @@ st.set_page_config(page_title="Strategia FIXED – Majątek w Metalach", page_ic
 
 st.title("📈 Strategia FIXED: Pierwszy zakup + Systematyczne dokupy")
 
+# Wybór języka
+language = st.sidebar.selectbox("Wybierz język / Choose language", ("Polski", "English"))
+
 # Ładowanie danych
 prices = load_prices()
 
 # Parametry wejściowe
-st.sidebar.header("Parametry Inwestycji")
-amount = st.sidebar.number_input("Kwota Początkowa (EUR)", min_value=1000.0, step=1000.0, value=100000.0)
-min_date, max_date = prices.index.min().date(), prices.index.max().date()
 today = datetime.date.today()
+min_date, max_date = prices.index.min().date(), prices.index.max().date()
 if today > max_date:
     today = max_date
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    start_date = st.sidebar.date_input("Data Startu", value=today - datetime.timedelta(days=5*365), min_value=min_date, max_value=max_date)
-with col2:
-    end_date = st.sidebar.date_input("Data Końca", value=today, min_value=min_date, max_value=max_date)
 
-frequency = st.sidebar.selectbox("Częstotliwość Zakupów", ["Jednorazowa", "Tygodniowa", "Miesięczna", "Kwartalna", "Roczna"])
-tranche_amount = st.sidebar.number_input("Kwota Transzy (EUR)", min_value=0.0, step=100.0, value=1000.0)
+if language == "Polski":
+    st.sidebar.header("Parametry Inwestycji")
+    amount = st.sidebar.number_input("Kwota Początkowa (EUR)", min_value=1000.0, step=1000.0, value=100000.0)
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        start_date = st.sidebar.date_input("Data Startu", value=today - datetime.timedelta(days=5*365), min_value=min_date, max_value=max_date)
+    with col2:
+        end_date = st.sidebar.date_input("Data Końca", value=today, min_value=min_date, max_value=max_date)
 
-st.sidebar.header("Marże Zakupowe (%)")
-gold_markup = st.sidebar.number_input("Złoto", 0.0, 50.0, 9.9)
-silver_markup = st.sidebar.number_input("Srebro", 0.0, 50.0, 13.5)
-platinum_markup = st.sidebar.number_input("Platyna", 0.0, 50.0, 14.3)
-palladium_markup = st.sidebar.number_input("Pallad", 0.0, 50.0, 16.9)
+    frequency = st.sidebar.selectbox("Częstotliwość Zakupów", ["Jednorazowa", "Tygodniowa", "Miesięczna", "Kwartalna", "Roczna"])
+    tranche_amount = st.sidebar.number_input("Kwota Transzy (EUR)", min_value=0.0, step=100.0, value=1000.0)
 
-# Suwaki dla proporcji metali
-st.sidebar.header("Proporcje Metali (%)")
-gold_pct = st.sidebar.slider("Złoto (%)", 0, 100, 40, step=5)
-silver_pct = st.sidebar.slider("Srebro (%)", 0, 100, 30, step=5)
-platinum_pct = st.sidebar.slider("Platyna (%)", 0, 100, 15, step=5)
-palladium_pct = st.sidebar.slider("Pallad (%)", 0, 100, 15, step=5)
+    st.sidebar.header("Marże Zakupowe (%)")
+    gold_markup = st.sidebar.number_input("Złoto", 0.0, 50.0, 9.9)
+    silver_markup = st.sidebar.number_input("Srebro", 0.0, 50.0, 13.5)
+    platinum_markup = st.sidebar.number_input("Platyna", 0.0, 50.0, 14.3)
+    palladium_markup = st.sidebar.number_input("Pallad", 0.0, 50.0, 16.9)
+
+    st.sidebar.header("Proporcje Metali (%)")
+else:
+    st.sidebar.header("Investment Parameters")
+    amount = st.sidebar.number_input("Initial Amount (EUR)", min_value=1000.0, step=1000.0, value=100000.0)
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        start_date = st.sidebar.date_input("Start Date", value=today - datetime.timedelta(days=5*365), min_value=min_date, max_value=max_date)
+    with col2:
+        end_date = st.sidebar.date_input("End Date", value=today, min_value=min_date, max_value=max_date)
+
+    frequency = st.sidebar.selectbox("Purchase Frequency", ["One-time", "Weekly", "Monthly", "Quarterly", "Annual"])
+    tranche_amount = st.sidebar.number_input("Tranche Amount (EUR)", min_value=0.0, step=100.0, value=1000.0)
+
+    st.sidebar.header("Purchase Margins (%)")
+    gold_markup = st.sidebar.number_input("Gold", 0.0, 50.0, 9.9)
+    silver_markup = st.sidebar.number_input("Silver", 0.0, 50.0, 13.5)
+    platinum_markup = st.sidebar.number_input("Platinum", 0.0, 50.0, 14.3)
+    palladium_markup = st.sidebar.number_input("Palladium", 0.0, 50.0, 16.9)
+
+    st.sidebar.header("Metal Proportions (%)")
+
+# Suwaki proporcji
+gold_pct = st.sidebar.slider("Gold (%)", 0, 100, 40, step=5)
+silver_pct = st.sidebar.slider("Silver (%)", 0, 100, 30, step=5)
+platinum_pct = st.sidebar.slider("Platinum (%)", 0, 100, 15, step=5)
+palladium_pct = st.sidebar.slider("Palladium (%)", 0, 100, 15, step=5)
 
 sum_pct = gold_pct + silver_pct + platinum_pct + palladium_pct
 if sum_pct == 100:
-    st.sidebar.success(f"✅ Suma: {sum_pct}%")
+    st.sidebar.success(f"✅ Sum: {sum_pct}%")
 else:
-    st.sidebar.error(f"❌ Suma: {sum_pct}% (Musi być 100%)")
+    st.sidebar.error(f"❌ Sum: {sum_pct}% (Must be 100%)")
 
 # Symulacja
 if st.sidebar.button("Symuluj Strategię FIXED") and sum_pct == 100:
@@ -184,11 +199,9 @@ if st.sidebar.button("Symuluj Strategię FIXED") and sum_pct == 100:
         c2.metric("📈 Wartość Portfela", f"{final_value:,.2f} EUR")
         c3.metric("📊 Wynik Inwestycyjny", f"{performance:.2f}%")
 
-        # Wykres wartości
         st.subheader("📈 Wartość Portfela w Czasie")
         fig = px.line(x=portfolio_cumsum.index, y=valuation, labels={'x':'Data', 'y':'Wartość Portfela (EUR)'})
         st.plotly_chart(fig, use_container_width=True)
 
-        # Tabela wynikowa
         st.subheader("📋 Szczegóły Inwestycji")
         st.dataframe(portfolio_cumsum.round(2))
