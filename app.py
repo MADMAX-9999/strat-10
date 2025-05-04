@@ -114,20 +114,25 @@ language = st.sidebar.selectbox("Wybierz język / Choose language", ("Polski", "
 # Ładowanie danych
 prices = load_prices()
 
-# Parametry wejściowe
+# Aktualne daty
 today = datetime.date.today()
-min_date, max_date = prices.index.min().date(), prices.index.max().date()
-if today > max_date:
-    today = max_date
+min_date_data = prices.index.min().date()
+max_date_data = prices.index.max().date()
+last_available_date = min(max_date_data, today)
 
+# Ustawienia dla wyboru dat
+min_start_date = last_available_date - datetime.timedelta(days=365*30)  # do 30 lat wstecz
+max_start_date = last_available_date - datetime.timedelta(days=365*7)   # minimum 7 lat okresu
+
+# Sidebar ustawienia
 if language == "Polski":
     st.sidebar.header("Parametry Inwestycji")
     amount = st.sidebar.number_input("Kwota Początkowa (EUR)", min_value=1000.0, step=1000.0, value=100000.0)
     col1, col2 = st.sidebar.columns(2)
     with col1:
-        start_date = st.sidebar.date_input("Data Startu", value=today - datetime.timedelta(days=5*365), min_value=min_date, max_value=max_date)
+        start_date = st.sidebar.date_input("Data Startu", value=max_start_date, min_value=min_start_date, max_value=max_start_date)
     with col2:
-        end_date = st.sidebar.date_input("Data Końca", value=today, min_value=min_date, max_value=max_date)
+        end_date = st.sidebar.date_input("Data Końca", value=last_available_date, min_value=last_available_date, max_value=last_available_date, disabled=True)
 
     frequency = st.sidebar.selectbox("Częstotliwość Zakupów", ["Jednorazowa", "Tygodniowa", "Miesięczna", "Kwartalna", "Roczna"])
     tranche_amount = st.sidebar.number_input("Kwota Transzy (EUR)", min_value=0.0, step=100.0, value=1000.0)
@@ -144,9 +149,9 @@ else:
     amount = st.sidebar.number_input("Initial Amount (EUR)", min_value=1000.0, step=1000.0, value=100000.0)
     col1, col2 = st.sidebar.columns(2)
     with col1:
-        start_date = st.sidebar.date_input("Start Date", value=today - datetime.timedelta(days=5*365), min_value=min_date, max_value=max_date)
+        start_date = st.sidebar.date_input("Start Date", value=max_start_date, min_value=min_start_date, max_value=max_start_date)
     with col2:
-        end_date = st.sidebar.date_input("End Date", value=today, min_value=min_date, max_value=max_date)
+        end_date = st.sidebar.date_input("End Date", value=last_available_date, min_value=last_available_date, max_value=last_available_date, disabled=True)
 
     frequency = st.sidebar.selectbox("Purchase Frequency", ["One-time", "Weekly", "Monthly", "Quarterly", "Annual"])
     tranche_amount = st.sidebar.number_input("Tranche Amount (EUR)", min_value=0.0, step=100.0, value=1000.0)
@@ -159,7 +164,7 @@ else:
 
     st.sidebar.header("Metal Proportions (%)")
 
-# Suwaki proporcji
+# Suwaki
 gold_pct = st.sidebar.slider("Gold (%)", 0, 100, 40, step=5)
 silver_pct = st.sidebar.slider("Silver (%)", 0, 100, 30, step=5)
 platinum_pct = st.sidebar.slider("Platinum (%)", 0, 100, 15, step=5)
@@ -192,7 +197,6 @@ if st.sidebar.button("Symuluj Strategię FIXED") and sum_pct == 100:
         final_value = valuation.iloc[-1]
         performance = ((final_value / total_invested) - 1) * 100
 
-        # Wyniki
         st.header("📊 Wyniki Strategii")
         c1, c2, c3 = st.columns(3)
         c1.metric("💶 Zainwestowano łącznie", f"{total_invested:,.2f} EUR")
