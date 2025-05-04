@@ -297,6 +297,44 @@ rebalance_2_start = st.sidebar.date_input(
     max_value=data.index.max().date()
 )
 
+# ♟️ TREND: Dynamiczna alokacja na podstawie zmian cen
+
+st.sidebar.markdown("---")
+st.sidebar.header("♟️ TREND: Dynamiczna alokacja zmian cen")
+
+# TREND - aktywacja
+trend_active = st.sidebar.checkbox("Aktywuj strategię TREND", value=False)
+
+# TREND - suwaki przydziału % dla miejsc 1-4
+with st.sidebar.expander("⚙️ Ustawienia TREND", expanded=trend_active):
+    if "trend_1" not in st.session_state:
+        st.session_state["trend_1"] = 40
+        st.session_state["trend_2"] = 30
+        st.session_state["trend_3"] = 20
+        st.session_state["trend_4"] = 10
+
+    if st.button("🔄 Resetuj TREND do 40/30/20/10"):
+        st.session_state["trend_1"] = 40
+        st.session_state["trend_2"] = 30
+        st.session_state["trend_3"] = 20
+        st.session_state["trend_4"] = 10
+        st.rerun()
+
+    trend_1 = st.slider("📈 Priorytet 1 (najlepszy metal) [%]", 0, 100, key="trend_1")
+    trend_2 = st.slider("📈 Priorytet 2 [%]", 0, 100, key="trend_2")
+    trend_3 = st.slider("📉 Priorytet 3 [%]", 0, 100, key="trend_3")
+    trend_4 = st.slider("📉 Priorytet 4 (najsłabszy metal) [%]", 0, 100, key="trend_4")
+
+    total_trend = trend_1 + trend_2 + trend_3 + trend_4
+    if total_trend != 100:
+        st.error(f"❗ Suma przydziału TREND wynosi {total_trend}%. Musi być dokładnie 100%, aby kontynuować.")
+        st.stop()
+
+# --- potem zaczyna się 📦 Koszty magazynowania (tak jak masz)
+
+
+
+
 # 📦 Koszty magazynowania
 with st.sidebar.expander("📦 Koszty magazynowania", expanded=False):
     storage_fee = st.number_input("Roczny koszt magazynowania (%)", value=1.5)
