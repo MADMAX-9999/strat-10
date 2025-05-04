@@ -297,45 +297,41 @@ rebalance_2_start = st.sidebar.date_input(
     max_value=data.index.max().date()
 )
 
-# Koszty magazynowania
-st.sidebar.subheader("📦 Koszty magazynowania")
+# 📦 Koszty magazynowania
+with st.sidebar.expander("📦 Koszty magazynowania", expanded=False):
+    storage_fee = st.number_input("Roczny koszt magazynowania (%)", value=1.5)
+    vat = st.number_input("VAT (%)", value=19.0)
+    storage_metal = st.selectbox(
+        "Metal do pokrycia kosztów",
+        ["Gold", "Silver", "Platinum", "Palladium", "Best of year", "ALL"]
+    )
 
-storage_fee = st.sidebar.number_input("Roczny koszt magazynowania (%)", value=1.5)
-vat = st.sidebar.number_input("VAT (%)", value=19.0)
-storage_metal = st.sidebar.selectbox(
-    "Metal do pokrycia kosztów",
-    ["Gold", "Silver", "Platinum", "Palladium", "Best of year", "ALL"]
-)
+# 📊 Marże i prowizje
+with st.sidebar.expander("📊 Marże i prowizje", expanded=False):
+    margins = {
+        "Gold": st.number_input("Marża Gold (%)", value=15.6),
+        "Silver": st.number_input("Marża Silver (%)", value=18.36),
+        "Platinum": st.number_input("Marża Platinum (%)", value=24.24),
+        "Palladium": st.number_input("Marża Palladium (%)", value=22.49)
+    }
 
-# Marże i prowizje
-st.sidebar.subheader("📊 Marże i prowizje")
+# 💵 Ceny odkupu metali od ceny SPOT (-%)
+with st.sidebar.expander("💵 Ceny odkupu metali od ceny SPOT (-%)", expanded=False):
+    buyback_discounts = {
+        "Gold": st.number_input("Złoto odk. od SPOT (%)", value=-1.5, step=0.1),
+        "Silver": st.number_input("Srebro odk. od SPOT (%)", value=-3.0, step=0.1),
+        "Platinum": st.number_input("Platyna odk. od SPOT (%)", value=-3.0, step=0.1),
+        "Palladium": st.number_input("Pallad odk. od SPOT (%)", value=-3.0, step=0.1)
+    }
 
-margins = {
-    "Gold": st.sidebar.number_input("Marża Gold (%)", value=15.6),
-    "Silver": st.sidebar.number_input("Marża Silver (%)", value=18.36),
-    "Platinum": st.sidebar.number_input("Marża Platinum (%)", value=24.24),
-    "Palladium": st.sidebar.number_input("Marża Palladium (%)", value=22.49)
-}
-
-# Ceny odkupu
-st.sidebar.subheader("💵 Ceny odkupu metali od ceny SPOT (-%)")
-
-buyback_discounts = {
-    "Gold": st.sidebar.number_input("Złoto odk. od SPOT (%)", value=-1.5, step=0.1),
-    "Silver": st.sidebar.number_input("Srebro odk. od SPOT (%)", value=-3.0, step=0.1),
-    "Platinum": st.sidebar.number_input("Platyna odk. od SPOT (%)", value=-3.0, step=0.1),
-    "Palladium": st.sidebar.number_input("Pallad odk. od SPOT (%)", value=-3.0, step=0.1)
-}
-
-# Ceny ReBalancing
-st.sidebar.subheader("♻️ Ceny ReBalancing metali (%)")
-
-rebalance_markup = {
-    "Gold": st.sidebar.number_input("Złoto ReBalancing (%)", value=6.5, step=0.1),
-    "Silver": st.sidebar.number_input("Srebro ReBalancing (%)", value=6.5, step=0.1),
-    "Platinum": st.sidebar.number_input("Platyna ReBalancing (%)", value=6.5, step=0.1),
-    "Palladium": st.sidebar.number_input("Pallad ReBalancing (%)", value=6.5, step=0.1)
-}
+# ♻️ Ceny ReBalancing metali (%)
+with st.sidebar.expander("♻️ Ceny ReBalancing metali (%)", expanded=False):
+    rebalance_markup = {
+        "Gold": st.number_input("Złoto ReBalancing (%)", value=6.5, step=0.1),
+        "Silver": st.number_input("Srebro ReBalancing (%)", value=6.5, step=0.1),
+        "Platinum": st.number_input("Platyna ReBalancing (%)", value=6.5, step=0.1),
+        "Palladium": st.number_input("Pallad ReBalancing (%)", value=6.5, step=0.1)
+    }
 
 # =========================================
 # 3. Funkcje pomocnicze (rozbudowane)
