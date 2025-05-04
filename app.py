@@ -5,6 +5,15 @@ import numpy as np
 import datetime
 import plotly.express as px
 
+# --- Główna aplikacja ---
+
+st.set_page_config(page_title="Strategia FIXED – Majątek w Metalach", page_icon="💰", layout="wide")
+
+st.title("📈 Strategia FIXED: Pierwszy zakup + Systematyczne dokupy")
+
+# Wybór języka
+language = st.sidebar.selectbox("Wybierz język / Choose language", ("Polski", "English"))
+
 # --- Stałe ---
 GRAMS_IN_TROY_OUNCE = 31.1034768
 
@@ -13,7 +22,7 @@ GRAMS_IN_TROY_OUNCE = 31.1034768
 def load_prices():
     try:
         df = pd.read_csv("lbma_data.csv", parse_dates=["Date"], sep=None, engine='python')
-        st.sidebar.success("Załadowano dane z pliku `lbma_data.csv`.")
+        # Tutaj usunięto komunikat "Załadowano dane"
     except FileNotFoundError:
         st.sidebar.error("Brak pliku `lbma_data.csv` na serwerze. Proszę dodać ten plik.")
         st.stop()
