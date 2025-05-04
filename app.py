@@ -432,8 +432,8 @@ def simulate(allocation):
         "rebalance_1": None,
         "rebalance_2": None
     }
-    
-def apply_rebalance(d, label, condition_enabled, threshold_percent):
+
+        def apply_rebalance(d, label, condition_enabled, threshold_percent):
         nonlocal last_rebalance_dates
 
         min_days_between_rebalances = 30  # minimalny odstęp w dniach
@@ -487,6 +487,7 @@ def apply_rebalance(d, label, condition_enabled, threshold_percent):
 
         last_rebalance_dates[label] = d
         return label
+    
 
 
 
